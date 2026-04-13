@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Fusic</string>
+    <string name="channel_name">Playback Control</string>
+    <string name="channel_desc">Music playback controls</string>
+</resources>

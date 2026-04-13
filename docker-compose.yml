@@ -1,0 +1,39 @@
+version: '3.8'
+
+services:
+  fusic-proxy:
+    build: ./proxy
+    container_name: fusic-proxy
+    ports:
+      - "8001:8001"
+    env_file:
+      - ./proxy/.env
+    volumes:
+      - ./proxy/cookies.txt:/app/cookies.txt:ro
+      - yt-dlp-cache:/root/.cache/yt-dlp
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  fusic-api:
+    build: ./api
+    container_name: fusic-api
+    ports:
+      - "8002:8002"
+    env_file:
+      - ./api/.env
+    volumes:
+      - ./api/oauth.json:/app/oauth.json:ro
+      - ./api/headers_auth.json:/app/headers_auth.json:ro
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8002/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+volumes:
+  yt-dlp-cache:

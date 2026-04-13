@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 680 680" role="img">
+<title>Fusic logo</title>
+<desc>Minimal geometric music logo — a stylized waveform inside a dark rounded square, crimson accent colors</desc>
+
+<style>
+  .bg { fill: #0f0b0a; }
+  .bar { fill: #c94040; }
+  .bar-dim { fill: #7a1a1a; }
+  .dot { fill: #c94040; }
+</style>
+
+<rect x="90" y="90" width="500" height="500" rx="80" class="bg"/>
+<rect x="90" y="90" width="500" height="500" rx="80" fill="none" stroke="#2a1818" stroke-width="1.5"/>
+
+<rect x="172" y="310" width="28" height="60" rx="14" class="bar-dim"/>
+<rect x="216" y="260" width="28" height="160" rx="14" class="bar"/>
+<rect x="260" y="290" width="28" height="100" rx="14" class="bar-dim"/>
+<rect x="304" y="230" width="28" height="220" rx="14" class="bar"/>
+<rect x="348" y="285" width="28" height="110" rx="14" class="bar-dim"/>
+<rect x="392" y="255" width="28" height="170" rx="14" class="bar"/>
+<rect x="436" y="315" width="28" height="50" rx="14" class="bar-dim"/>
+
+<circle cx="340" cy="510" r="8" class="dot"/>
+<circle cx="304" cy="510" r="4" class="bar-dim"/>
+<circle cx="376" cy="510" r="4" class="bar-dim"/>
+</svg>
