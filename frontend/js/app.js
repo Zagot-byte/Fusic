@@ -13,6 +13,7 @@ window.FUSIC = {
 };
 
 const API_BASE = 'http://localhost:8001';
+const API_YT = 'http://localhost:8002';
 const API_KEY = 'dev';
 
 // DOM Elements
@@ -28,6 +29,9 @@ const seekSlider = document.getElementById('seek-slider');
 const volSlider = document.getElementById('volume-slider');
 const timeCurrent = document.getElementById('time-current');
 const timeTotal = document.getElementById('time-total');
+
+const searchInput = document.getElementById('search-input');
+const searchResults = document.getElementById('search-results');
 
 const npArt = document.getElementById('np-art');
 const npTitle = document.getElementById('np-title');
@@ -67,7 +71,82 @@ function init() {
   }
   
   setupListeners();
+  setupListeners();
   renderHome();
+}
+
+let searchTimeout = null;
+if (searchInput) {
+  searchInput.addEventListener('input', (e) => {
+    clearTimeout(searchTimeout);
+    searchTimeout = setTimeout(() => {
+      performSearch(e.target.value);
+    }, 500);
+  });
+}
+
+async function performSearch(query) {
+  if (!query.trim()) {
+    searchResults.innerHTML = '';
+    return;
+  }
+  try {
+    const res = await fetch(`${API_YT}/search?q=${encodeURIComponent(query)}`, { headers: { 'X-API-Key': API_KEY } });
+    if (!res.ok) throw new Error('Search failed');
+    const data = await res.json();
+    renderSearchResults(data);
+  } catch (e) {
+    console.error(e);
+  }
+}
+
+function renderSearchResults(data) {
+  searchResults.innerHTML = '';
+  // ytmusicapi search usually returns a list of dictionaries with category, resultType, videoId, title, artists, thumbnails
+  // We'll map them to tracks
+  if (!Array.isArray(data)) return;
+  const tracks = data.filter(item => item.resultType === 'song' || item.resultType === 'video');
+  
+  tracks.forEach(t => {
+    const track = {
+      videoId: t.videoId,
+      title: t.title,
+      artist: t.artists ? t.artists.map(a => a.name).join(', ') : 'Unknown',
+      thumbnail: t.thumbnails && t.thumbnails.length > 0 ? t.thumbnails[t.thumbnails.length - 1].url : 'fusic-logo-192.png',
+      duration: t.duration_seconds || 0
+    };
+    
+    const div = document.createElement('div');
+    div.className = 'track-item';
+    div.style.display = 'flex';
+    div.style.alignItems = 'center';
+    div.style.gap = '12px';
+    div.style.padding = '8px';
+    div.style.cursor = 'pointer';
+    div.style.borderBottom = '1px solid var(--border)';
+    
+    div.innerHTML = `
+      <img src="${track.thumbnail}" style="width:48px;height:48px;object-fit:cover;border-radius:4px;">
+      <div style="flex:1;">
+        <div style="font-weight:bold;color:var(--text);">${track.title}</div>
+        <div style="font-size:0.85em;color:var(--text-dim);">${track.artist}</div>
+      </div>
+    `;
+    
+    div.addEventListener('click', () => {
+      // Add to queue if not present
+      if (!window.FUSIC.queue.find(q => q.videoId === track.videoId)) {
+        window.FUSIC.queue.push(track);
+      }
+      loadTrack(track);
+      play();
+      if (window.innerWidth <= 768) {
+        nowPlayingPanel.classList.add('open');
+      }
+    });
+    
+    searchResults.appendChild(div);
+  });
 }
 
 function getCachedUrl(videoId) {
@@ -305,14 +384,65 @@ function switchPage(pageId) {
   if(target) target.classList.add('active');
 }
 
-function renderHome() {
+async function renderHome() {
   const shelfQuick = document.getElementById('shelf-quick');
   const shelfRec = document.getElementById('shelf-recommended');
   const shelfMixed = document.getElementById('shelf-mixed');
   
   if(!shelfQuick) return;
   
-  const generateCards = (target) => {
+  const generateCards = (target, items) => {
+    target.innerHTML = '';
+    items.forEach(t => {
+      // mapping ytmusicapi format to our track format
+      const track = {
+        videoId: t.videoId,
+        title: t.title,
+        artist: t.artists ? t.artists.map(a => a.name).join(', ') : 'Unknown',
+        thumbnail: t.thumbnails && t.thumbnails.length > 0 ? t.thumbnails[t.thumbnails.length - 1].url : 'fusic-logo-192.png',
+        duration: t.duration_seconds || 0
+      };
+
+      const card = document.createElement('div');
+      card.className = 'card';
+      card.innerHTML = `
+        <img class="card-img" src="${track.thumbnail}" alt="art">
+        <div class="card-title">${track.title}</div>
+        <div class="card-subtitle">${track.artist}</div>
+      `;
+      card.addEventListener('click', () => {
+        if (!window.FUSIC.queue.find(q => q.videoId === track.videoId)) {
+          window.FUSIC.queue.push(track);
+        }
+        loadTrack(track);
+        play();
+        if (window.innerWidth <= 768) {
+          nowPlayingPanel.classList.add('open');
+        }
+      });
+      target.appendChild(card);
+    });
+  };
+
+  try {
+    const res = await fetch(`${API_YT}/home`, { headers: { 'X-API-Key': API_KEY } });
+    if (res.ok) {
+      const data = await res.json();
+      // data is usually an array of shelves from ytmusicapi
+      // let's grab random sections or just first few for our UI
+      if (Array.isArray(data) && data.length > 0) {
+        if (data[0] && data[0].contents) generateCards(shelfQuick, data[0].contents.filter(c => c.videoId).slice(0, 10));
+        if (data[1] && data[1].contents) generateCards(shelfRec, data[1].contents.filter(c => c.videoId).slice(0, 10));
+        if (data[2] && data[2].contents) generateCards(shelfMixed, data[2].contents.filter(c => c.videoId).slice(0, 10));
+        return; // we loaded from API successfully
+      }
+    }
+  } catch (e) {
+    console.warn("Could not fetch home from API, using dummy tracks");
+  }
+
+  // Fallback to DUMMY_TRACKS
+  const fallbackRender = (target) => {
     DUMMY_TRACKS.forEach(t => {
       const card = document.createElement('div');
       card.className = 'card';
@@ -324,7 +454,6 @@ function renderHome() {
       card.addEventListener('click', () => {
         loadTrack(t);
         play();
-        // On mobile, card tap should open fullscreen player
         if (window.innerWidth <= 768) {
           nowPlayingPanel.classList.add('open');
         }
@@ -333,9 +462,9 @@ function renderHome() {
     });
   };
 
-  generateCards(shelfQuick);
-  generateCards(shelfRec);
-  generateCards(shelfMixed);
+  fallbackRender(shelfQuick);
+  fallbackRender(shelfRec);
+  fallbackRender(shelfMixed);
 }
 
 function syncLyrics(time) {
